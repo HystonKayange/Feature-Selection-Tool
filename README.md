@@ -33,10 +33,11 @@ It handles missing values, encodes categorical variables, analyzes feature impor
 <p>The Feature Selector Tool includes powerful visualization methods to inspect dataset characteristics:</p>
 
 <h3>🔹 Feature Importance</h3>
-<p align="center"><img src="images/Figure_1.png" width="600"></p>
+<p align="center"><img src="Images/Figure_1.png" width="600"></p>
 
 <h3>🔹 Feature Distribution</h3>
-<p align="center"><img src="images/Figure_3.png" width="600"></p>
+<p align="center"><img src="Images/Figure_3.png" width="600"></p>
+<p align="center"><img src="Images/Figure_2.png" width="600"></p>
 
 <hr>
 
