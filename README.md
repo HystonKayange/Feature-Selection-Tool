@@ -96,7 +96,7 @@ pip install -r requirements.txt
   <li>Expanded visualization capabilities</li>
 </ul>
 
-<p>👉 Feel free to check our <a href="CONTRIBUTING.md">Contributing Guidelines</a> if you'd like to suggest improvements or contribute!</p>
+
 
 <hr>
 
@@ -107,10 +107,9 @@ pip install -r requirements.txt
 <tr><th>Dataset</th><th>Description</th><th>Link</th></tr>
 </thead>
 <tbody>
-<tr><td>Heart Disease Dataset</td><td>Features related to patient heart health.</td><td><a href="#">Dataset Link</a></td></tr>
-<tr><td>Diabetes Dataset</td><td>Health indicators for diabetes prediction.</td><td><a href="#">Dataset Link</a></td></tr>
-<tr><td>Health Stroke Dataset</td><td>Features related to stroke prediction.</td><td><a href="#">Dataset Link</a></td></tr>
-<tr><td>MovieLens Dataset</td><td>Movie recommendation system data.</td><td><a href="#">Dataset Link</a></td></tr>
+<tr><td>Heart Disease Dataset</td><td>Features related to patient heart health.</td><td><a href="https://archive.ics.uci.edu/dataset/45/heart+disease">Dataset Link</a></td></tr>
+<tr><td>Diabetes Dataset</td><td>Health indicators for diabetes prediction.</td><td><a href="https://archive.ics.uci.edu/dataset/34/diabetes">Dataset Link</a></td></tr>
+<tr><td>MovieLens Dataset</td><td>Movie recommendation system data.</td><td><a href="https://grouplens.org/datasets/movielens/">Dataset Link</a></td></tr>
 </tbody>
 </table>
 
@@ -122,15 +121,4 @@ pip install -r requirements.txt
 
 <hr>
 
-<h2>📬 Contact</h2>
-
-<ul>
-  <li><b>Author:</b> [Your Name]</li>
-  <li><b>Email:</b> [your.email@example.com]</li>
-  <li><b>GitHub:</b> [Your GitHub Profile]</li>
-</ul>
-
-<hr>
-
-<p align="center"><b>🎯 Making feature selection easier, smarter, and faster for all machine learning workflows!</b></p>
 
