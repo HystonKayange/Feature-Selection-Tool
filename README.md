@@ -41,7 +41,7 @@ It handles missing values, encodes categorical variables, analyzes feature impor
 
 <hr>
 
-<h2>🏗️ Usage</h2>
+<h2> Usage</h2>
 
 <pre>
 1. Navigate to the project directory:
@@ -94,6 +94,7 @@ pip install -r requirements.txt
   <li>Enhanced support for large datasets</li>
   <li>Improved outlier detection and handling</li>
   <li>Expanded visualization capabilities</li>
+  <li>Only handles Tabular datasets</li>
 </ul>
 
 
