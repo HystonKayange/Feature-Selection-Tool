@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package (editable) with dev extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        env:
+          MPLBACKEND: Agg
+        run: pytest tests/ -q --tb=short
+
+      - name: CLI smoke test (run + compare)
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          from sklearn.datasets import make_classification
+          X, y = make_classification(n_samples=80, n_features=6, n_informative=3, random_state=0)
+          df = pd.DataFrame(X, columns=[f"f{i}" for i in range(6)])
+          df["target"] = y
+          Path("ci_demo.csv").write_text(df.to_csv(index=False))
+          PY
+          feature-select run ci_demo.csv --task classification -k 3 --method anova --out ci_out --no-plots -q
+          test -f ci_out/selected_features.json
+          test -f ci_out/scores.csv
+          test -f ci_out/report.html
+          test -f ci_out/metrics.json
+          feature-select compare ci_demo.csv -k 3 --methods anova,rf --cv 3 --stability-splits 3 --out ci_cmp -q
+          test -f ci_cmp/comparison_summary.csv
+          test -f ci_cmp/comparison_report.html
+          feature-select datasets download breast_cancer --out ci_data
+          test -f ci_data/breast_cancer.csv
+          feature-select nested-cv ci_data/breast_cancer.csv -k 5 --method anova --cv 3 --out ci_ncv -q
+          test -f ci_ncv/nested_cv_result.json
+

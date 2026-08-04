@@ -1,0 +1,18 @@
+site_name: Feature Selector Tool
+site_description: Leakage-safe multi-method feature selection for research
+repo_url: https://github.com/HystonKayange/Feature-Selection-Tool
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: indigo
+nav:
+  - Home: index.md
+  - Datasets: datasets.md
+  - Research workflow: research.md
+  - API: api.md
+markdown_extensions:
+  - tables
+  - fenced_code
+  - toc:
+      permalink: true
