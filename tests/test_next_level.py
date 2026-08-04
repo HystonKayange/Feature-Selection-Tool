@@ -19,16 +19,18 @@ def clf():
 
 
 def test_l1_logistic_no_future_warning():
+    """L1 logistic should fit without sklearn version-specific API warnings."""
     X, y = make_classification(n_samples=80, n_features=6, random_state=1)
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         warnings.simplefilter("error", UserWarning)
         model = make_l1_logistic(random_state=0, max_iter=800)
         model.fit(X, y)
-    assert model.coef_.shape[1] == 6
+    assert model.coef_.shape[-1] == 6
 
 
 def test_lasso_method_no_penalty_warning(clf):
+    """FeatureSelector(method='lasso') uses version-safe L1 logistic."""
     X, y = clf
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
@@ -38,6 +40,18 @@ def test_lasso_method_no_penalty_warning(clf):
         )
         out = sel.fit_transform(X, y)
     assert out.shape == (len(X), 4)
+
+
+def test_make_l1_logistic_uses_sparse_penalty():
+    """Ensure we actually request L1 (not default L2) on the active sklearn."""
+    from feature_selector.selector import _sklearn_version_tuple
+
+    model = make_l1_logistic(random_state=0)
+    major, minor, _ = _sklearn_version_tuple()
+    if (major, minor) >= (1, 8):
+        assert getattr(model, "l1_ratio", None) == 1.0
+    else:
+        assert model.penalty == "l1"
 
 
 def test_mutual_info_seeded_reproducible(clf):

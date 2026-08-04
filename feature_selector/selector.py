@@ -113,6 +113,18 @@ def normalize_method(method: str) -> Tuple[str, Optional[str]]:
     return METHOD_ALIASES[key]
 
 
+def _sklearn_version_tuple() -> Tuple[int, int, int]:
+    import sklearn
+
+    parts = sklearn.__version__.split(".")
+    major = int(parts[0])
+    minor = int(parts[1]) if len(parts) > 1 else 0
+    # patch may be "0rc1" etc.
+    patch_s = parts[2] if len(parts) > 2 else "0"
+    patch = int("".join(ch for ch in patch_s if ch.isdigit()) or "0")
+    return major, minor, patch
+
+
 def make_l1_logistic(
     *,
     random_state: int = 42,
@@ -120,23 +132,39 @@ def make_l1_logistic(
     C: float = 1.0,
     n_jobs: Optional[int] = None,
 ) -> LogisticRegression:
-    """Logistic regression with pure L1, compatible with sklearn ≥1.8.
+    """Logistic regression with pure L1 across sklearn versions.
 
-    Prefer ``l1_ratio=1.0`` (no deprecated ``penalty='l1'``).
+    - sklearn ≥ 1.8: use ``l1_ratio=1.0`` (``penalty='l1'`` is deprecated)
+    - sklearn < 1.8: use ``penalty='l1'`` (``l1_ratio`` alone is ignored / warns)
     """
-    kwargs = dict(
-        solver="saga",
-        l1_ratio=1.0,
-        max_iter=max_iter,
-        random_state=random_state,
-        C=C,
-        tol=1e-3,
-    )
-    # n_jobs supported on some versions for multi-class
-    try:
-        return LogisticRegression(**kwargs, n_jobs=n_jobs)
-    except TypeError:
-        return LogisticRegression(**kwargs)
+    major, minor, _ = _sklearn_version_tuple()
+    use_new_api = (major, minor) >= (1, 8)
+
+    if use_new_api:
+        kwargs: dict = dict(
+            solver="saga",
+            l1_ratio=1.0,
+            max_iter=max_iter,
+            random_state=random_state,
+            C=C,
+            tol=1e-3,
+        )
+    else:
+        kwargs = dict(
+            penalty="l1",
+            solver="saga",
+            max_iter=max_iter,
+            random_state=random_state,
+            C=C,
+            tol=1e-3,
+        )
+
+    if n_jobs is not None:
+        try:
+            return LogisticRegression(**kwargs, n_jobs=n_jobs)
+        except TypeError:
+            pass
+    return LogisticRegression(**kwargs)
 
 
 class FeatureSelector:

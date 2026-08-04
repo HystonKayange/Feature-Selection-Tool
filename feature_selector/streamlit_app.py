@@ -66,7 +66,7 @@ def _sklearn_diabetes() -> pd.DataFrame:
     return df
 
 
-def _load_user_frame(uploaded, target_col: str | None) -> tuple[pd.DataFrame, pd.Series]:
+def _load_user_frame(uploaded, target_col=None):
     raw = uploaded.getvalue()
     df = pd.read_csv(io.BytesIO(raw))
     if target_col and target_col in df.columns:
