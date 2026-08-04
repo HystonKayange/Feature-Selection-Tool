@@ -22,15 +22,17 @@ from feature_selector.preprocess import (
 )
 from feature_selector.selector import (
     FeatureSelector,
+    make_l1_logistic,
     normalize_method,
     normalize_score,
     normalize_task,
 )
 from feature_selector.stability import StabilityResult, pairwise_jaccard, stability_selection
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = [
     "FeatureSelector",
+    "make_l1_logistic",
     "TabularDataset",
     "load_dataset",
     "infer_task",

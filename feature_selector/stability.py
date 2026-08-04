@@ -54,6 +54,8 @@ def stability_selection(
     threshold: float = 0.6,
     random_state: int = 42,
     score: Optional[str] = None,
+    fast: bool = False,
+    n_jobs: int = -1,
 ) -> StabilityResult:
     """Select features on each CV fold; report selection frequencies.
 
@@ -120,6 +122,8 @@ def stability_selection(
             score=score_c,
             method=method_c,
             random_state=random_state,
+            fast=fast,
+            n_jobs=n_jobs,
         )
         sel.fit(X_tr, y_tr)
         chosen = list(sel.selected_features_)

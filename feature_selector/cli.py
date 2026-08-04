@@ -248,6 +248,23 @@ def _build_parser() -> argparse.ArgumentParser:
     ncv_p.add_argument("--method", default="anova")
     ncv_p.add_argument("--cv", type=int, default=5, help="Outer folds")
     ncv_p.add_argument("-o", "--out", required=True, help="Output directory")
+    ncv_p.add_argument(
+        "--fast",
+        action="store_true",
+        default=True,
+        help="Faster selector settings (default: on)",
+    )
+    ncv_p.add_argument(
+        "--no-fast",
+        action="store_true",
+        help="Disable fast mode for max quality",
+    )
+    ncv_p.add_argument(
+        "--n-jobs",
+        type=int,
+        default=-1,
+        help="Parallel jobs for RF/LassoCV (-1 = all cores)",
+    )
     ncv_p.add_argument("-q", "--quiet", action="store_true")
 
     # ---- interactive ----
@@ -496,6 +513,8 @@ def _cmd_nested_cv(args) -> int:
         task=args.task,
         outer_splits=args.cv,
         random_state=args.seed,
+        fast=not args.no_fast,
+        n_jobs=args.n_jobs,
     )
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

@@ -30,8 +30,17 @@ def nested_cv_feature_selection(
     outer_splits: int = 5,
     random_state: int = 42,
     score: Optional[str] = None,
+    fast: bool = True,
+    n_jobs: int = -1,
 ) -> Dict[str, Any]:
     """Nested CV: select features on each outer train fold, score on outer test.
+
+    Parameters
+    ----------
+    fast :
+        Use faster selector settings (recommended for wide data / many methods).
+    n_jobs :
+        Parallelism for RF / LassoCV inside each fold.
 
     Returns
     -------
@@ -96,6 +105,8 @@ def nested_cv_feature_selection(
             score=score_c,
             method=method_c,
             random_state=random_state + fold_id,
+            fast=fast,
+            n_jobs=n_jobs,
         )
         X_tr_s = sel.fit_transform(X_tr, y_tr)
         X_te_s = sel.transform(X_te)
@@ -176,6 +187,8 @@ def nested_cv_compare_methods(
     task: str = "auto",
     outer_splits: int = 5,
     random_state: int = 42,
+    fast: bool = True,
+    n_jobs: int = -1,
 ) -> pd.DataFrame:
     """Run nested CV for several methods; return a summary table."""
     from feature_selector.compare import DEFAULT_METHODS
@@ -191,6 +204,8 @@ def nested_cv_compare_methods(
             task=task,
             outer_splits=outer_splits,
             random_state=random_state,
+            fast=fast,
+            n_jobs=n_jobs,
         )
         row: Dict[str, Any] = {
             "method": m,

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "feature-selector-tool"
-version = "0.4.0"
-description = "Leakage-safe multi-method feature selection with research comparisons"
+version = "0.5.0"
+description = "Leakage-safe multi-method feature selection with research comparisons and nested CV"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
@@ -20,18 +20,22 @@ keywords = [
     "data-science",
     "stability-selection",
     "benchmark",
+    "nested-cv",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
 ]
 dependencies = [
     "pandas>=1.5.0",
@@ -63,6 +67,7 @@ Homepage = "https://github.com/HystonKayange/Feature-Selection-Tool"
 Repository = "https://github.com/HystonKayange/Feature-Selection-Tool"
 Issues = "https://github.com/HystonKayange/Feature-Selection-Tool/issues"
 Documentation = "https://github.com/HystonKayange/Feature-Selection-Tool/tree/main/docs"
+Changelog = "https://github.com/HystonKayange/Feature-Selection-Tool/blob/main/CHANGELOG.md"
 
 [project.scripts]
 feature-select = "feature_selector.cli:main"
@@ -70,6 +75,9 @@ feature-select = "feature_selector.cli:main"
 [tool.setuptools.packages.find]
 include = ["feature_selector*"]
 exclude = ["tests*", "examples*"]
+
+[tool.setuptools.package-data]
+feature_selector = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

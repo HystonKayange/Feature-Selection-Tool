@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
@@ -13,6 +14,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import (
     RFE,
     SelectKBest,
+    chi2,
     f_classif,
     f_regression,
     mutual_info_classif,
@@ -34,6 +36,7 @@ from feature_selector.report import (
 SCORE_FUNCS = {
     ("classification", "f_score"): f_classif,
     ("classification", "mutual_info"): mutual_info_classif,
+    ("classification", "chi2"): chi2,
     ("regression", "f_score"): f_regression,
     ("regression", "mutual_info"): mutual_info_regression,
 }
@@ -46,6 +49,9 @@ SCORE_ALIASES = {
     "mi": "mutual_info",
     "mutual-info": "mutual_info",
     "mutual_information": "mutual_info",
+    "chi2": "chi2",
+    "chi_square": "chi2",
+    "chi-square": "chi2",
 }
 
 TASK_ALIASES = {
@@ -65,6 +71,7 @@ METHOD_ALIASES = {
     "mutual_info": ("filter", "mutual_info"),
     "mi": ("filter", "mutual_info"),
     "mutual-info": ("filter", "mutual_info"),
+    "chi2": ("filter", "chi2"),
     "random_forest": ("random_forest", None),
     "rf": ("random_forest", None),
     "lasso": ("lasso", None),
@@ -75,11 +82,11 @@ SUPPORTED_METHODS = ("filter", "random_forest", "lasso", "rfe")
 
 
 def normalize_score(score: str) -> str:
-    key = score.strip().lower().replace(" ", "_")
+    key = score.strip().lower().replace(" ", "_").replace("-", "_")
     if key not in SCORE_ALIASES:
         raise ValueError(
             f"Unknown score '{score}'. "
-            f"Choose from: anova/f_score, mutual_info/mi"
+            f"Choose from: anova/f_score, mutual_info/mi, chi2"
         )
     return SCORE_ALIASES[key]
 
@@ -96,16 +103,40 @@ def normalize_task(task: str) -> str:
 def normalize_method(method: str) -> Tuple[str, Optional[str]]:
     """Return (canonical_method, score_override_or_None)."""
     key = method.strip().lower().replace(" ", "_").replace("-", "_")
-    # allow mutual_info style already handled
     if key not in METHOD_ALIASES:
-        # try score-like names already in SCORE_ALIASES
         if key in SCORE_ALIASES:
             return "filter", SCORE_ALIASES[key]
         raise ValueError(
             f"Unknown method '{method}'. Choose from: "
-            f"filter, anova, mutual_info, random_forest/rf, lasso, rfe"
+            f"filter, anova, mutual_info, chi2, random_forest/rf, lasso, rfe"
         )
     return METHOD_ALIASES[key]
+
+
+def make_l1_logistic(
+    *,
+    random_state: int = 42,
+    max_iter: int = 2000,
+    C: float = 1.0,
+    n_jobs: Optional[int] = None,
+) -> LogisticRegression:
+    """Logistic regression with pure L1, compatible with sklearn ≥1.8.
+
+    Prefer ``l1_ratio=1.0`` (no deprecated ``penalty='l1'``).
+    """
+    kwargs = dict(
+        solver="saga",
+        l1_ratio=1.0,
+        max_iter=max_iter,
+        random_state=random_state,
+        C=C,
+        tol=1e-3,
+    )
+    # n_jobs supported on some versions for multi-class
+    try:
+        return LogisticRegression(**kwargs, n_jobs=n_jobs)
+    except TypeError:
+        return LogisticRegression(**kwargs)
 
 
 class FeatureSelector:
@@ -125,9 +156,16 @@ class FeatureSelector:
         For ``method='filter'``: ``'f_score'`` / ``'anova'`` or ``'mutual_info'``.
     method :
         ``filter``, ``random_forest`` (``rf``), ``lasso``, ``rfe``,
-        or aliases ``anova`` / ``mutual_info``.
+        or aliases ``anova`` / ``mutual_info`` / ``chi2``.
     random_state :
-        Seed for stochastic methods (RF, Lasso path, RFE solvers).
+        Seed for stochastic methods (RF, MI, Lasso path, RFE solvers).
+    n_jobs :
+        Parallelism for RF / LassoCV (``-1`` = all cores).
+    n_estimators :
+        Trees for Random Forest (default 200, or 50 when ``fast=True``).
+    fast :
+        Prefer speed over peak quality (fewer trees, coarser RFE steps,
+        lighter LassoCV). Recommended for nested CV on wide data (e.g. Madelon).
     """
 
     def __init__(
@@ -137,6 +175,9 @@ class FeatureSelector:
         score: str = "f_score",
         method: str = "filter",
         random_state: int = 42,
+        n_jobs: int = -1,
+        n_estimators: Optional[int] = None,
+        fast: bool = False,
     ):
         self.k = k
         self.task = normalize_task(task)
@@ -144,6 +185,13 @@ class FeatureSelector:
         self.method = method_c
         self.score = normalize_score(score_override or score)
         self.random_state = random_state
+        self.n_jobs = n_jobs
+        self.fast = bool(fast)
+        self.n_estimators = (
+            int(n_estimators)
+            if n_estimators is not None
+            else (50 if self.fast else 200)
+        )
 
         self.numeric_imputer_: Optional[SimpleImputer] = None
         self.categorical_imputer_: Optional[SimpleImputer] = None
@@ -300,33 +348,64 @@ class FeatureSelector:
         raise ValueError(f"Unsupported method: {self.method}")
 
     def _fit_filter(self, X_proc, y_arr, k, names):
-        score_func = SCORE_FUNCS[(self.task_, self.score)]
+        if self.score == "chi2":
+            if self.task_ != "classification":
+                raise ValueError("score='chi2' is only valid for classification.")
+            X_arr = np.asarray(X_proc, dtype=float)
+            # chi2 requires non-negative features — shift per column
+            col_min = np.nanmin(X_arr, axis=0)
+            X_nonneg = X_arr - col_min
+            X_nonneg = np.clip(X_nonneg, 0.0, None)
+            score_func = chi2
+            fit_X = X_nonneg
+        elif self.score == "mutual_info":
+            # Seed MI for reproducibility (critical for nested CV / papers)
+            n_neighbors = 3 if self.fast else 5
+            if self.task_ == "classification":
+                score_func = partial(
+                    mutual_info_classif,
+                    random_state=self.random_state,
+                    n_neighbors=n_neighbors,
+                )
+            else:
+                score_func = partial(
+                    mutual_info_regression,
+                    random_state=self.random_state,
+                    n_neighbors=n_neighbors,
+                )
+            fit_X = X_proc
+        else:
+            if (self.task_, self.score) not in SCORE_FUNCS:
+                raise ValueError(
+                    f"No filter score for task={self.task_!r}, score={self.score!r}"
+                )
+            score_func = SCORE_FUNCS[(self.task_, self.score)]
+            fit_X = X_proc
+
         selector = SelectKBest(score_func=score_func, k=k)
-        selector.fit(X_proc, y_arr)
+        selector.fit(fit_X, y_arr)
         scores = np.asarray(selector.scores_, dtype=float)
-        # NaN scores → treat as worst
         scores_rank = np.where(np.isfinite(scores), scores, -np.inf)
         support = selector.get_support()
         selected = [n for n, keep in zip(names, support) if keep]
-        # If SelectKBest failed on ties, fall back to top-k by score
         if len(selected) != k:
             order = np.argsort(scores_rank)[::-1][:k]
             selected = [names[i] for i in order]
         return scores, selected
 
     def _fit_random_forest(self, X_proc, y_arr, k, names):
+        rf_kwargs = dict(
+            n_estimators=self.n_estimators,
+            random_state=self.random_state,
+            n_jobs=self.n_jobs,
+        )
+        if self.fast:
+            rf_kwargs["max_depth"] = 12
+            rf_kwargs["min_samples_leaf"] = 2
         if self.task_ == "classification":
-            model = RandomForestClassifier(
-                n_estimators=200,
-                random_state=self.random_state,
-                n_jobs=-1,
-            )
+            model = RandomForestClassifier(**rf_kwargs)
         else:
-            model = RandomForestRegressor(
-                n_estimators=200,
-                random_state=self.random_state,
-                n_jobs=-1,
-            )
+            model = RandomForestRegressor(**rf_kwargs)
         model.fit(X_proc, y_arr)
         scores = np.asarray(model.feature_importances_, dtype=float)
         order = np.argsort(scores)[::-1][:k]
@@ -334,12 +413,12 @@ class FeatureSelector:
         return scores, selected
 
     def _fit_lasso(self, X_proc, y_arr, k, names):
+        max_iter = 1500 if self.fast else 4000
         if self.task_ == "classification":
-            model = LogisticRegression(
-                penalty="l1",
-                solver="saga",
-                max_iter=4000,
+            model = make_l1_logistic(
                 random_state=self.random_state,
+                max_iter=max_iter,
+                n_jobs=self.n_jobs if not self.fast else None,
             )
             model.fit(X_proc, y_arr)
             coef = np.asarray(model.coef_, dtype=float)
@@ -348,11 +427,13 @@ class FeatureSelector:
             else:
                 scores = np.abs(coef)
         else:
+            n_cv = 3 if self.fast else min(5, max(2, len(y_arr) // 10 or 2))
             model = LassoCV(
-                cv=min(5, max(2, len(y_arr) // 10 or 2)),
+                cv=n_cv,
                 random_state=self.random_state,
-                max_iter=4000,
-                n_jobs=-1,
+                max_iter=max_iter,
+                n_jobs=self.n_jobs,
+                tol=1e-3 if self.fast else 1e-4,
             )
             model.fit(X_proc, y_arr)
             scores = np.abs(np.asarray(model.coef_, dtype=float))
@@ -363,17 +444,21 @@ class FeatureSelector:
 
     def _fit_rfe(self, X_proc, y_arr, k, names):
         if self.task_ == "classification":
+            # L2 logistic is faster/stabler as RFE base than L1
             base = LogisticRegression(
-                max_iter=2000, random_state=self.random_state
+                solver="lbfgs",
+                max_iter=1000 if self.fast else 2000,
+                random_state=self.random_state,
             )
         else:
             base = LinearRegression()
-        # step: drop more features at once for wider matrices
         n_features = X_proc.shape[1]
-        step = 1 if n_features <= 40 else max(1, n_features // 20)
+        if self.fast:
+            step = 1 if n_features <= 30 else max(1, n_features // 10)
+        else:
+            step = 1 if n_features <= 40 else max(1, n_features // 20)
         rfe = RFE(estimator=base, n_features_to_select=k, step=step)
         rfe.fit(X_proc, y_arr)
-        # Higher score = better: invert ranking (1 is best)
         ranking = np.asarray(rfe.ranking_, dtype=float)
         scores = 1.0 / ranking
         selected = [n for n, keep in zip(names, rfe.support_) if keep]

@@ -33,6 +33,9 @@ DEFAULT_METHODS = [
     "rfe",
 ]
 
+# Include chi2 for classification-heavy exploratory runs (optional caller list)
+EXTENDED_METHODS = DEFAULT_METHODS + ["chi2"]
+
 
 @dataclass
 class ComparisonResult:
@@ -195,6 +198,8 @@ def compare_methods(
     correlation_threshold: Optional[float] = 0.95,
     include_outlier_report: bool = True,
     run_stability: bool = True,
+    fast: bool = False,
+    n_jobs: int = -1,
 ) -> ComparisonResult:
     """Compare feature-selection methods on the same dataset.
 
@@ -260,6 +265,8 @@ def compare_methods(
             score=score_c,
             method=method_c,
             random_state=random_state,
+            fast=fast,
+            n_jobs=n_jobs,
         )
         sel.fit(X_prep, y_series)
         feats = list(sel.selected_features_)
@@ -286,6 +293,8 @@ def compare_methods(
                 n_splits=stability_splits,
                 threshold=stability_threshold,
                 random_state=random_state,
+                fast=fast,
+                n_jobs=n_jobs,
             )
             stability_tables[display] = stab.frequencies
             row["mean_stability"] = stab.mean_stability

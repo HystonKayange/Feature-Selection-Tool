@@ -4,8 +4,8 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-0.4.0-green?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-56%20passed-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.5.0-green?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
 
 <p align="center">
   <img src="Images/results/headline_cards.png" width="900" alt="Nested CV headline results">
@@ -142,6 +142,27 @@ pip install -e ".[ui]"     # Streamlit
 pip install -e ".[docs]"   # MkDocs
 ```
 
+### PyPI (when published)
+
+```bash
+pip install feature-selector-tool
+```
+
+See [PUBLISHING.md](PUBLISHING.md) for TestPyPI / PyPI release steps and GitHub Actions upload.
+
+### Performance knobs (v0.5)
+
+```python
+# Fast path for nested CV / wide data (Madelon)
+FeatureSelector(k=20, method="random_forest", fast=True, n_jobs=-1)
+
+# Nested CV uses fast=True by default
+from feature_selector import nested_cv_feature_selection
+nested_cv_feature_selection(X, y, method="rf", k=20, fast=True)
+```
+
+CLI: `feature-select nested-cv data.csv -k 20 --method rf --out out/` (fast on; `--no-fast` for max quality).
+
 ---
 
 ## 30-second example
@@ -188,10 +209,11 @@ feature-select nested-cv data/madelon.csv -k 20 --method random_forest --out res
 | Name | Family | Typical strength |
 |------|--------|------------------|
 | `anova` / `f_score` | Filter | Fast, strong on clean linear signals |
-| `mutual_info` / `mi` | Filter | Nonlinear dependency (e.g. heart disease here) |
+| `mutual_info` / `mi` | Filter | Nonlinear dependency (seeded for reproducibility) |
+| `chi2` | Filter | Classification only; auto non-negative shift |
 | `random_forest` / `rf` | Model-based | Robust on noisy high-dim (Madelon) |
-| `lasso` | Model-based / embedded | Sparse linear subsets (Sonar) |
-| `rfe` | Wrapper | Accurate but slower on wide data |
+| `lasso` | Model-based / embedded | Sparse linear subsets (sklearn 1.8+ safe L1) |
+| `rfe` | Wrapper | Accurate; use `fast=True` on wide data |
 
 ---
 
@@ -264,7 +286,7 @@ pytest tests/ -q
 
 If you use this tool in a paper or thesis, please cite the repository and note:
 
-- package version **0.4.0**  
+- package version **0.5.0** (results tables produced under 0.4 protocol; methods unchanged)  
 - seed **42**  
 - nested **5-fold** CV  
 - baseline: `StandardScaler` + `LogisticRegression`  

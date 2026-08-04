@@ -1,0 +1,10 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include pyproject.toml
+include mkdocs.yml
+recursive-include docs *.md
+recursive-include Images *.png
+recursive-exclude tests *
+recursive-exclude examples *
+global-exclude *.py[cod] __pycache__ .pytest_cache

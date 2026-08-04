@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — Next-level polish
+
+- **sklearn 1.8+ L1 logistic** via `l1_ratio=1.0` (no deprecated `penalty='l1'` warnings)
+- **Seeded mutual information** (`random_state`) for reproducible nested CV
+- New filter method: **`chi2`** (classification; auto non-negative shift)
+- Performance knobs: `fast=`, `n_jobs=`, `n_estimators=` on `FeatureSelector`
+- Nested CV defaults to **fast mode** (much quicker on wide data like Madelon)
+- PyPI readiness: `MANIFEST.in`, `py.typed`, `PUBLISHING.md`, publish workflow
+- Version **0.5.0**
+
 ## 0.4.0 — Phase 3
 
 - Curated **dataset catalog** with download helpers (`feature-select datasets`)
